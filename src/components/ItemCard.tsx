@@ -13,7 +13,7 @@ const rotations = [
   "card-rotate-6",
 ];
 
-export default function ItemCard({ item, index }: { item: Item; index: number }) {
+export default function ItemCard({ item, index, onRefresh }: { item: Item; index: number; onRefresh: () => void }) {
   const [marking, setMarking] = useState(false);
   const rotation = rotations[index % rotations.length];
 
@@ -24,6 +24,7 @@ export default function ItemCard({ item, index }: { item: Item; index: number })
       .update({ is_taken: true, taken_at: new Date().toISOString() })
       .eq("id", item.id);
     setMarking(false);
+    onRefresh();
   }
 
   async function markAsAvailable() {
@@ -33,6 +34,7 @@ export default function ItemCard({ item, index }: { item: Item; index: number })
       .update({ is_taken: false, taken_at: null })
       .eq("id", item.id);
     setMarking(false);
+    onRefresh();
   }
 
   return (

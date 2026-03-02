@@ -8,9 +8,11 @@ const EMOJIS = ["🥒", "🍋", "🌿", "🍅", "🥬", "🫑", "🥕", "🍎", 
 export default function AddItemModal({
   open,
   onClose,
+  onAdded,
 }: {
   open: boolean;
   onClose: () => void;
+  onAdded: () => void;
 }) {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🥬");
@@ -44,6 +46,7 @@ export default function AddItemModal({
     setPickupNote("");
     setEmoji("🥬");
     setSubmitting(false);
+    onAdded();
     onClose();
   }
 

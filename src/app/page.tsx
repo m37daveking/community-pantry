@@ -93,7 +93,7 @@ export default function Home() {
             {available.length > 0 && (
               <div className="grid gap-4">
                 {available.map((item, i) => (
-                  <ItemCard key={item.id} item={item} index={i} />
+                  <ItemCard key={item.id} item={item} index={i} onRefresh={fetchItems} />
                 ))}
               </div>
             )}
@@ -110,6 +110,7 @@ export default function Home() {
                       key={item.id}
                       item={item}
                       index={i + available.length}
+                      onRefresh={fetchItems}
                     />
                   ))}
                 </div>
@@ -158,7 +159,7 @@ export default function Home() {
         </button>
       )}
 
-      <AddItemModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <AddItemModal open={modalOpen} onClose={() => setModalOpen(false)} onAdded={fetchItems} />
     </div>
   );
 }
