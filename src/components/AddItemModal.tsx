@@ -3,7 +3,13 @@
 import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
 
-const EMOJIS = ["🥒", "🍋", "🌿", "🍅", "🥬", "🫑", "🥕", "🍎", "🌽", "🥚"];
+const QUICK_PICKS = ["🥒", "🍋", "🌿", "🍅", "🥬", "🫑", "🥕", "🍎", "🌽", "🥚"];
+
+const FULL_EMOJIS: { label: string; emojis: string[] }[] = [
+  { label: "Fruit", emojis: ["🍎", "🍐", "🍊", "🍋", "🍇", "🍓", "🫐", "🍌", "🍑", "🍒", "🍈", "🥝", "🍍", "🥭", "🫒"] },
+  { label: "Veg", emojis: ["🥒", "🥕", "🍅", "🥬", "🫑", "🌽", "🥦", "🍆", "🧄", "🧅", "🥔", "🍠", "🫘", "🥜", "🌶️"] },
+  { label: "Herbs & other", emojis: ["🌿", "🥚", "🍯", "🌻", "🫛", "🧈", "🍞", "🥛", "🫙", "🌰", "🥥", "🍄"] },
+];
 
 export default function AddItemModal({
   open,
@@ -20,6 +26,7 @@ export default function AddItemModal({
   const [fromName, setFromName] = useState("");
   const [pickupNote, setPickupNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showAllEmojis, setShowAllEmojis] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("pantry-name");
@@ -45,6 +52,7 @@ export default function AddItemModal({
     setQuantity("");
     setPickupNote("");
     setEmoji("🥬");
+    setShowAllEmojis(false);
     setSubmitting(false);
     onAdded();
     onClose();
@@ -80,22 +88,70 @@ export default function AddItemModal({
             <label className="block text-xs font-medium text-text-muted mb-1.5">
               Pick an icon
             </label>
-            <div className="flex gap-1.5 flex-wrap">
-              {EMOJIS.map((e) => (
+
+            {!showAllEmojis ? (
+              <div className="flex gap-1.5 flex-wrap">
+                {QUICK_PICKS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => setEmoji(e)}
+                    className={`text-2xl p-1.5 rounded-lg transition-all cursor-pointer ${
+                      emoji === e
+                        ? "bg-green-pale ring-2 ring-green scale-110"
+                        : "hover:bg-cream-dark"
+                    }`}
+                  >
+                    {e}
+                  </button>
+                ))}
                 <button
-                  key={e}
                   type="button"
-                  onClick={() => setEmoji(e)}
-                  className={`text-2xl p-1.5 rounded-lg transition-all cursor-pointer ${
-                    emoji === e
-                      ? "bg-green-pale ring-2 ring-green scale-110"
-                      : "hover:bg-cream-dark"
-                  }`}
+                  onClick={() => setShowAllEmojis(true)}
+                  className="text-xs font-medium text-text-muted hover:text-green
+                    px-2.5 py-1.5 rounded-lg hover:bg-cream-dark transition-colors cursor-pointer
+                    flex items-center"
                 >
-                  {e}
+                  more...
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {FULL_EMOJIS.map((group) => (
+                  <div key={group.label}>
+                    <p className="text-[10px] uppercase tracking-wider text-text-muted/60 font-medium mb-1">
+                      {group.label}
+                    </p>
+                    <div className="flex gap-1 flex-wrap">
+                      {group.emojis.map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          onClick={() => {
+                            setEmoji(e);
+                            setShowAllEmojis(false);
+                          }}
+                          className={`text-xl p-1 rounded-lg transition-all cursor-pointer ${
+                            emoji === e
+                              ? "bg-green-pale ring-2 ring-green scale-110"
+                              : "hover:bg-cream-dark"
+                          }`}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowAllEmojis(false)}
+                  className="text-xs text-text-muted hover:text-green transition-colors cursor-pointer"
+                >
+                  show less
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Item name */}
