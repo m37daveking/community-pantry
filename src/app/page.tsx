@@ -1,65 +1,164 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { supabase, Item } from "@/lib/supabase";
+import { isOlderThan24Hours } from "@/lib/time";
+import ItemCard from "@/components/ItemCard";
+import AddItemModal from "@/components/AddItemModal";
 
 export default function Home() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const fetchItems = useCallback(async () => {
+    const { data } = await supabase
+      .from("items")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (data) setItems(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchItems();
+
+    const channel = supabase
+      .channel("items-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "items" },
+        () => {
+          fetchItems();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchItems]);
+
+  // Split items: available first, then taken (collapsed if >24h old)
+  const available = items.filter((i) => !i.is_taken);
+  const recentlyTaken = items.filter(
+    (i) => i.is_taken && !isOlderThan24Hours(i.taken_at)
+  );
+  const oldTaken = items.filter(
+    (i) => i.is_taken && isOlderThan24Hours(i.taken_at)
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen pb-24">
+      {/* Header */}
+      <header className="pt-8 pb-6 px-5 text-center">
+        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-green mb-1">
+          Community Pantry
+        </h1>
+        <p className="text-text-muted text-sm">
+          Surplus from the neighbourhood, free to a good home
+        </p>
+      </header>
+
+      {/* Content */}
+      <main className="max-w-lg mx-auto px-4">
+        {loading ? (
+          <div className="text-center py-16">
+            <p className="text-text-muted text-sm">Loading the pantry...</p>
+          </div>
+        ) : items.length === 0 ? (
+          /* Empty state */
+          <div className="text-center py-16 px-6">
+            <div className="text-5xl mb-4">🧺</div>
+            <h2 className="font-serif text-xl text-green mb-2">
+              The pantry&apos;s bare
+            </h2>
+            <p className="text-text-muted text-sm mb-6">
+              Got something to share? Tomatoes going wild? Too many eggs?
+              <br />
+              Be the first to add something.
+            </p>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-terracotta
+                hover:bg-terracotta-light text-white font-medium rounded-lg
+                transition-colors text-sm cursor-pointer"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+              Share something
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Available items */}
+            {available.length > 0 && (
+              <div className="grid gap-4">
+                {available.map((item, i) => (
+                  <ItemCard key={item.id} item={item} index={i} />
+                ))}
+              </div>
+            )}
+
+            {/* Recently taken */}
+            {recentlyTaken.length > 0 && (
+              <div className="mt-8">
+                <p className="text-xs text-text-muted uppercase tracking-wider font-medium mb-3 px-1">
+                  Recently claimed
+                </p>
+                <div className="grid gap-3">
+                  {recentlyTaken.map((item, i) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      index={i + available.length}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Old taken items (collapsed) */}
+            {oldTaken.length > 0 && (
+              <div className="mt-8">
+                <p className="text-xs text-text-muted uppercase tracking-wider font-medium mb-3 px-1">
+                  Previously shared
+                </p>
+                <div className="grid gap-2 opacity-40">
+                  {oldTaken.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-white/60 rounded-lg px-4 py-2.5 text-sm flex items-center gap-2"
+                    >
+                      <span>{item.emoji}</span>
+                      <span className="line-through text-text-muted font-serif">
+                        {item.name}
+                      </span>
+                      <span className="text-text-muted/60 text-xs ml-auto">
+                        from {item.from_name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </main>
+
+      {/* Floating add button */}
+      {!loading && (
+        <button
+          onClick={() => setModalOpen(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-terracotta hover:bg-terracotta-light
+            text-white rounded-full shadow-lg hover:shadow-xl
+            transition-all text-2xl flex items-center justify-center cursor-pointer
+            active:scale-95"
+          aria-label="Share something"
+        >
+          +
+        </button>
+      )}
+
+      <AddItemModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
 }
